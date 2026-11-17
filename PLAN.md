@@ -78,6 +78,12 @@ One calculation module, kept separate from the UI and fully unit tested:
   server route so the API key stays private; returns structured JSON
 - **Hosting**: Vercel
 
+## Status
+
+- Done: steps 1 and 2 (grade engine with tests, calculator UI saved in the browser).
+- Done but untested against the real AI: step 3 (upload endpoint and review screen). Needs an API key to try.
+- Not started: steps 4 to 6 (accounts, college/class search, multi-class dashboard). These need a database (Supabase) set up first.
+
 ## Build order
 
 1. **Grade engine + tests**: all the math, no UI
