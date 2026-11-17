@@ -16,6 +16,7 @@ export default function CourseEditor({ course, current }: { course: Course; curr
 
   const total = weightTotal(course);
   const dropped = new Set(current.dropped);
+  const unweighted = course.categories.filter((c) => !(c.weight > 0) && c.assignments.length > 0);
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,6 +65,12 @@ export default function CourseEditor({ course, current }: { course: Course; curr
           <p className="mt-3 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">
             Category weights add up to {num(total)}%, not 100%. Grades are calculated as if they were scaled to
             100%.
+          </p>
+        )}
+        {course.mode === "weighted" && unweighted.length > 0 && (
+          <p className="mt-3 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">
+            {unweighted.map((c) => c.name || "Untitled").join(", ")} {unweighted.length === 1 ? "has" : "have"} a
+            weight of 0%, so {unweighted.length === 1 ? "it does" : "they do"} not count toward the grade.
           </p>
         )}
       </Card>
@@ -123,9 +130,9 @@ export default function CourseEditor({ course, current }: { course: Course; curr
               {cat.assignments.map((a) => (
                 <li
                   key={a.id}
-                  className="grid grid-cols-[1fr_32px] items-center gap-2 sm:grid-cols-[1fr_150px_90px_44px_32px]"
+                  className="grid grid-cols-[1fr_84px_28px_32px] items-center gap-2 sm:grid-cols-[1fr_150px_90px_44px_32px]"
                 >
-                  <div className="relative">
+                  <div className="relative order-1 col-span-3 sm:col-span-1">
                     <input
                       className={inputCls}
                       value={a.name}
@@ -138,7 +145,7 @@ export default function CourseEditor({ course, current }: { course: Course; curr
                       </span>
                     )}
                   </div>
-                  <div className="order-3 col-span-2 flex items-center gap-1 sm:order-none sm:col-span-1">
+                  <div className="order-3 flex items-center gap-1 sm:order-2">
                     <NumInput
                       value={a.earned}
                       placeholder="–"
@@ -151,19 +158,36 @@ export default function CourseEditor({ course, current }: { course: Course; curr
                       aria-label={`${a.name} points possible`}
                       onChange={(v) => updateAsg(cat.id, a.id, { possible: v ?? 0 })}
                     />
-                    <span className="ml-2 flex items-center gap-2 sm:hidden">
-                      <WhatIf a={a} onChange={(v) => updateAsg(cat.id, a.id, { whatIf: v })} />
-                      <Extra a={a} onChange={(v) => updateAsg(cat.id, a.id, { extraCredit: v })} />
-                    </span>
                   </div>
-                  <div className="hidden sm:block">
-                    <WhatIf a={a} onChange={(v) => updateAsg(cat.id, a.id, { whatIf: v })} />
+                  <div className="order-4 sm:order-3">
+                    {a.earned !== null ? (
+                      <span className="block text-center text-sm text-muted">graded</span>
+                    ) : (
+                      <NumInput
+                        value={a.whatIf}
+                        placeholder="what if"
+                        aria-label={`${a.name} what-if score`}
+                        className="border-dashed"
+                        onChange={(v) => updateAsg(cat.id, a.id, { whatIf: v })}
+                      />
+                    )}
                   </div>
-                  <div className="hidden justify-center sm:flex">
-                    <Extra a={a} onChange={(v) => updateAsg(cat.id, a.id, { extraCredit: v })} />
+                  <div className="order-5 col-span-2 flex items-center gap-1.5 sm:order-4 sm:col-span-1 sm:justify-center">
+                    <input
+                      type="checkbox"
+                      id={`ec-${a.id}`}
+                      className="h-4 w-4 accent-(--accent)"
+                      checked={a.extraCredit}
+                      title="Extra credit"
+                      aria-label={`${a.name} is extra credit`}
+                      onChange={(e) => updateAsg(cat.id, a.id, { extraCredit: e.target.checked })}
+                    />
+                    <label htmlFor={`ec-${a.id}`} className="text-xs text-muted sm:hidden">
+                      extra
+                    </label>
                   </div>
                   <button
-                    className="order-2 h-9 rounded-md text-muted hover:bg-soft hover:text-ink sm:order-none"
+                    className="order-2 h-9 rounded-md text-muted hover:bg-soft hover:text-ink sm:order-5"
                     title="Delete assignment"
                     aria-label={`Delete ${a.name}`}
                     onClick={() =>
@@ -271,30 +295,4 @@ function nextName(cat: Category): string {
   const m = last?.name.match(/^(.*?)(\d+)\s*$/);
   if (m) return `${m[1]}${Number(m[2]) + 1}`;
   return `Assignment ${cat.assignments.length + 1}`;
-}
-
-function WhatIf({ a, onChange }: { a: Assignment; onChange: (v: number | null) => void }) {
-  if (a.earned !== null) return <span className="block text-center text-sm text-muted">graded</span>;
-  return (
-    <NumInput
-      value={a.whatIf}
-      placeholder="what if"
-      aria-label={`${a.name} what-if score`}
-      className="min-w-20 border-dashed"
-      onChange={onChange}
-    />
-  );
-}
-
-function Extra({ a, onChange }: { a: Assignment; onChange: (v: boolean) => void }) {
-  return (
-    <input
-      type="checkbox"
-      className="h-4 w-4 accent-(--accent)"
-      checked={a.extraCredit}
-      title="Extra credit"
-      aria-label={`${a.name} is extra credit`}
-      onChange={(e) => onChange(e.target.checked)}
-    />
-  );
 }

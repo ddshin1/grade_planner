@@ -8,7 +8,6 @@ const KEY = "grade-planner:v1";
 
 export type State = { courses: Course[]; selectedId: string | null };
 
-const EMPTY: State = { courses: [], selectedId: null };
 let state: State | null = null;
 const listeners = new Set<() => void>();
 
@@ -134,5 +133,3 @@ export const actions = {
     setState((s) => ({ ...s, courses: s.courses.map((c) => (c.id === id ? fn(c) : c)) }));
   },
 };
-
-export { EMPTY };

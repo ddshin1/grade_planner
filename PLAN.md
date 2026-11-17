@@ -82,7 +82,10 @@ One calculation module, kept separate from the UI and fully unit tested:
 
 - Done: steps 1 and 2 (grade engine with tests, calculator UI saved in the browser).
 - Done but untested against the real AI: step 3 (upload endpoint and review screen). Needs an API key to try.
-- Not started: steps 4 to 6 (accounts, college/class search, multi-class dashboard). These need a database (Supabase) set up first.
+- Partly done: step 5. Class search works for one school (UIUC) from a public grade-distribution
+  dataset, with past grade stats per class and instructor. It needs no database. Still missing: more
+  schools (each needs its own public data source) and shared grading setups (needs a database).
+- Not started: step 4 (accounts) and the multi-class dashboard in step 6.
 
 ## Build order
 

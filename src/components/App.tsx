@@ -4,13 +4,14 @@ import { useMemo, useState } from "react";
 import { currentGrade, letterFor } from "@/lib/grades";
 import { actions, newCourse, useStore } from "@/lib/store";
 import CourseEditor from "./CourseEditor";
+import FindClassDialog from "./FindClassDialog";
 import ImportDialog from "./ImportDialog";
 import Results from "./Results";
 import { btnCls, pct, primaryBtnCls } from "./ui";
 
 export default function App() {
   const state = useStore();
-  const [importing, setImporting] = useState(false);
+  const [dialog, setDialog] = useState<"import" | "find" | null>(null);
 
   const course = state?.courses.find((c) => c.id === state.selectedId) ?? state?.courses[0] ?? null;
   const current = useMemo(() => (course ? currentGrade(course) : null), [course]);
@@ -22,8 +23,11 @@ export default function App() {
           <h1 className="text-xl font-semibold">Grade Planner</h1>
           <p className="text-sm text-muted">What you have, what you need, and what you can skip.</p>
         </div>
-        <div className="flex gap-2">
-          <button className={btnCls} onClick={() => setImporting(true)}>
+        <div className="flex flex-wrap gap-2">
+          <button className={btnCls} onClick={() => setDialog("find")}>
+            Find your class
+          </button>
+          <button className={btnCls} onClick={() => setDialog("import")}>
             Import syllabus
           </button>
           <button className={primaryBtnCls} onClick={() => actions.addCourse(newCourse())}>
@@ -37,7 +41,7 @@ export default function App() {
       ) : course === null || current === null ? (
         <div className="rounded-xl border border-dashed border-line px-4 py-16 text-center">
           <p className="font-medium">No classes yet</p>
-          <p className="mt-1 text-sm text-muted">Add a class by hand, or import one from your syllabus.</p>
+          <p className="mt-1 text-sm text-muted">Find your class, add one by hand, or import it from your syllabus.</p>
         </div>
       ) : (
         <>
@@ -79,7 +83,8 @@ export default function App() {
         and policies decide the real one.
       </p>
 
-      {importing && <ImportDialog onClose={() => setImporting(false)} />}
+      {dialog === "import" && <ImportDialog onClose={() => setDialog(null)} />}
+      {dialog === "find" && <FindClassDialog onClose={() => setDialog(null)} />}
     </div>
   );
 }

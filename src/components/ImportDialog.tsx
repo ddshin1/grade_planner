@@ -4,7 +4,7 @@ import { useState } from "react";
 import { type Course, DEFAULT_SCALE } from "@/lib/grades";
 import type { ImportedCourse } from "@/lib/import-schema";
 import { actions, newAssignment, newCategory, uid } from "@/lib/store";
-import { btnCls, num, primaryBtnCls } from "./ui";
+import { Modal, btnCls, num, primaryBtnCls } from "./ui";
 
 type Status =
   | { step: "pick" }
@@ -51,23 +51,7 @@ export default function ImportDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div
-      className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center"
-      onClick={(e) => e.target === e.currentTarget && onClose()}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label="Import a class"
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-xl"
-      >
-        <div className="flex items-start justify-between gap-4">
-          <h2 className="text-lg font-semibold">Import from a syllabus or gradebook</h2>
-          <button className="text-muted hover:text-ink" onClick={onClose} aria-label="Close">
-            ✕
-          </button>
-        </div>
-
+    <Modal title="Import from a syllabus or gradebook" onClose={onClose}>
         {(status.step === "pick" || status.step === "error") && (
           <>
             <p className="mt-2 text-sm text-muted">
@@ -167,7 +151,6 @@ export default function ImportDialog({ onClose }: { onClose: () => void }) {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Modal>
   );
 }

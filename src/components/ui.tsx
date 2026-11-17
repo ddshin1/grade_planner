@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export const inputCls =
   "h-9 w-full rounded-md border border-line bg-surface px-2 text-sm text-ink outline-none placeholder:text-muted/70 focus:border-accent focus:ring-2 focus:ring-accent/25";
@@ -57,4 +57,46 @@ export function NumInput({
 
 export function Card({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return <section className={`rounded-xl border border-line bg-surface ${className}`}>{children}</section>;
+}
+
+/** Centered dialog. Closes on Escape, the ✕ button, or a click outside. */
+export function Modal({
+  title,
+  onClose,
+  wide = false,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  wide?: boolean;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  return (
+    <div
+      className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`max-h-[88vh] w-full overflow-y-auto rounded-xl border border-line bg-surface p-5 shadow-xl ${
+          wide ? "max-w-2xl" : "max-w-lg"
+        }`}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button className="text-muted hover:text-ink" onClick={onClose} aria-label="Close">
+            ✕
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
 }
