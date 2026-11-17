@@ -1,116 +1,167 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { type CatalogCourse, SCHOOLS, searchCourses } from "@/lib/catalog";
-import { actions, newCourse } from "@/lib/store";
-import ClassStats, { useCatalog } from "./ClassStats";
-import { Modal, inputCls, primaryBtnCls } from "./ui";
+import { useEffect, useMemo, useState } from "react";
+import { type CatalogCourse, loadCatalog, searchCourses } from "@/lib/catalog";
+import { collegeKey } from "@/lib/colleges";
+import { type StoredClass, describeShared, fromShared } from "@/lib/shared";
+import { type ChosenCollege, actions, newCourse, useStore } from "@/lib/store";
+import CollegePicker from "./CollegePicker";
+import { Modal, btnCls, inputCls, primaryBtnCls } from "./ui";
+
+type Shared = { for: string; status: "loading" | "ready" | "error"; classes: StoredClass[] };
 
 export default function FindClassDialog({ onClose }: { onClose: () => void }) {
-  const [schoolId, setSchoolId] = useState(SCHOOLS[0].id);
-  const [query, setQuery] = useState("");
-  const [openKey, setOpenKey] = useState<string | null>(null);
-  const loaded = useCatalog(schoolId);
-  const school = SCHOOLS.find((s) => s.id === schoolId) ?? SCHOOLS[0];
-
-  const results = useMemo(
-    () => (loaded.status === "ready" ? searchCourses(loaded.catalog, query) : []),
-    [loaded, query],
-  );
-
-  function add(c: CatalogCourse) {
-    actions.addCourse({
-      ...newCourse(`${c.s} ${c.n}: ${c.t}`),
-      college: school.short,
-      catalog: { school: school.id, subject: c.s, number: c.n },
-    });
-    onClose();
-  }
-
+  const college = useStore()?.college ?? null;
   return (
     <Modal title="Find your class" onClose={onClose} wide>
-      <div className="mt-3 grid gap-2 sm:grid-cols-[220px_1fr]">
-        <select
-          className={inputCls}
-          value={schoolId}
-          aria-label="School"
-          onChange={(e) => {
-            setSchoolId(e.target.value);
-            setOpenKey(null);
-          }}
-        >
-          {SCHOOLS.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
+      <label className="mt-3 block">
+        <span className="mb-1 block text-xs font-medium text-muted">Your college</span>
+        <CollegePicker value={college} onChange={actions.setCollege} autoFocus={college === null} />
+      </label>
+      {college === null ? (
+        <p className="mt-4 mb-2 text-sm text-muted">
+          Pick your college to search its classes. If it is not in the list, type its name and choose “Use” at the
+          bottom of the suggestions.
+        </p>
+      ) : (
+        <ClassSearch key={collegeKey({ collegeId: college.id, college: college.name })} college={college} onClose={onClose} />
+      )}
+    </Modal>
+  );
+}
+
+function ClassSearch({ college, onClose }: { college: ChosenCollege; onClose: () => void }) {
+  const key = collegeKey({ collegeId: college.id, college: college.name }) ?? "";
+  const [query, setQuery] = useState("");
+  const [catalog, setCatalog] = useState<CatalogCourse[]>([]);
+  const [shared, setShared] = useState<Shared>({ for: "", status: "loading", classes: [] });
+  const q = query.trim();
+
+  useEffect(() => {
+    let live = true;
+    if (college.id) loadCatalog(college.id).then((c) => live && setCatalog(c), () => undefined);
+    return () => {
+      live = false;
+    };
+  }, [college.id]);
+
+  // Ask the shared library shortly after the student stops typing.
+  useEffect(() => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/classes?college=${encodeURIComponent(key)}&q=${encodeURIComponent(q)}`, { signal: ctrl.signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then(
+          (d: { classes: StoredClass[] }) => setShared({ for: q, status: "ready", classes: d.classes }),
+          (e) => e.name !== "AbortError" && setShared({ for: q, status: "error", classes: [] }),
+        );
+    }, 200);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [key, q]);
+
+  const listed = useMemo(() => searchCourses(catalog, q), [catalog, q]);
+  const sharedReady = shared.for === q && shared.status !== "loading";
+
+  function add(course: ReturnType<typeof newCourse>) {
+    actions.addCourse(course);
+    onClose();
+  }
+  const blank = (name: string) => ({ ...newCourse(name), college: college.name, collegeId: college.id });
+
+  return (
+    <>
+      <label className="mt-3 block">
+        <span className="mb-1 block text-xs font-medium text-muted">Class</span>
         <input
           className={inputCls}
           autoFocus
           value={query}
-          placeholder="Search by code or title, e.g. CS 225 or statistics"
+          placeholder="Search by code, title or instructor, e.g. CS 225"
           aria-label="Search classes"
           onChange={(e) => setQuery(e.target.value)}
         />
-      </div>
+      </label>
 
-      <div className="mt-3 min-h-48">
-        {loaded.status === "loading" && <p className="py-8 text-center text-sm text-muted">Loading classes…</p>}
-        {loaded.status === "error" && (
-          <p className="rounded-md bg-bad-soft px-3 py-2 text-sm text-bad">
-            Could not load the class list. Check your connection and try again.
-          </p>
+      <div className="mt-3 min-h-40">
+        {shared.classes.length > 0 && shared.for === q && (
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted">
+              {q === "" ? "Recently shared by students here" : "Grading setups shared by students"}
+            </h3>
+            <ul className="mt-1.5 divide-y divide-line rounded-lg border border-line">
+              {shared.classes.map((c) => (
+                <li key={c.id} className="flex items-center gap-3 px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-medium">{c.name}</div>
+                    <div className="line-clamp-2 text-sm text-muted">
+                      {[c.instructor, c.term].filter(Boolean).join(" · ")}
+                      {(c.instructor || c.term) && " · "}
+                      {describeShared(c)}
+                    </div>
+                  </div>
+                  <button className={`${primaryBtnCls} h-8 shrink-0 px-2.5`} onClick={() => add(fromShared(c))}>
+                    Use this
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
-        {loaded.status === "ready" && query.trim() === "" && (
-          <p className="py-8 text-center text-sm text-muted">
-            {loaded.catalog.courses.length.toLocaleString()} classes at {school.short}. Start typing to search.
-          </p>
-        )}
-        {loaded.status === "ready" && query.trim() !== "" && results.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted">
-            No classes match “{query.trim()}”. You can still add it by hand with “New class”.
-          </p>
-        )}
-        {loaded.status === "ready" && results.length > 0 && (
-          <ul className="divide-y divide-line rounded-lg border border-line">
-            {results.map((c) => {
-              const key = `${c.s} ${c.n}`;
-              const open = openKey === key;
-              return (
-                <li key={key}>
-                  <div className="flex items-center gap-2 px-3 py-2">
-                    <button
-                      className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
-                      aria-expanded={open}
-                      onClick={() => setOpenKey(open ? null : key)}
-                    >
-                      <span className="shrink-0 font-semibold tabular-nums">{key}</span>
-                      <span className="truncate text-sm">{c.t}</span>
-                    </button>
-                    <span className="shrink-0 text-sm tabular-nums text-muted" title="Average GPA">
-                      {c.gpa === null ? "" : `${c.gpa.toFixed(2)} GPA`}
-                    </span>
-                    <button className={`${primaryBtnCls} h-8 shrink-0 px-2.5`} onClick={() => add(c)}>
+
+        {listed.length > 0 && (
+          <section className="mt-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted">Classes at {college.name}</h3>
+            <ul className="mt-1.5 divide-y divide-line rounded-lg border border-line">
+              {listed.map((c) => {
+                const code = `${c.subject} ${c.number}`;
+                return (
+                  <li key={code} className="flex items-center gap-3 px-3 py-2">
+                    <div className="flex min-w-0 flex-1 items-baseline gap-2">
+                      <span className="shrink-0 font-semibold tabular-nums">{code}</span>
+                      <span className="truncate text-sm">{c.title}</span>
+                    </div>
+                    <button className={`${btnCls} h-8 shrink-0 px-2.5`} onClick={() => add(blank(`${code}: ${c.title}`))}>
                       Add
                     </button>
-                  </div>
-                  {open && (
-                    <div className="border-t border-line bg-bg/50 px-3 py-3">
-                      <ClassStats catalog={loaded.catalog} course={c} />
-                    </div>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
+
+        {shared.status === "error" && shared.for === q && (
+          <p className="mt-3 rounded-md bg-warn-soft px-3 py-2 text-sm text-warn">
+            Could not check for setups shared by other students. You can still add your class below.
+          </p>
+        )}
+
+        {q !== "" && sharedReady && (
+          <div className="mt-3 rounded-lg border border-dashed border-line px-3 py-3">
+            <p className="text-sm">
+              {shared.classes.length === 0 && listed.length === 0
+                ? `Nothing found for “${q}” yet. Set it up yourself:`
+                : "Not the right one? Set it up yourself:"}
+            </p>
+            <button className={`${primaryBtnCls} mt-2`} onClick={() => add(blank(q))}>
+              Add “{q}” and enter the details
+            </button>
+            <p className="mt-2 text-xs text-muted">
+              You type in the categories, weights, drops and assignments from your syllabus. You can then share the
+              setup so classmates find it here.
+            </p>
+          </div>
+        )}
+
+        {q === "" && sharedReady && shared.classes.length === 0 && (
+          <p className="py-6 text-center text-sm text-muted">
+            Type your class code or title. If nobody has added it yet, you can set it up yourself.
+          </p>
         )}
       </div>
-
-      <p className="mt-3 text-xs text-muted">
-        Click a class to see how past students did. Adding it sets up the class name; the grading weights come from
-        your syllabus, so enter those after adding. Only one school has class data so far.
-      </p>
-    </Modal>
+    </>
   );
 }

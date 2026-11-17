@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { type Assignment, type Category, type Course, type Evaluation, weightTotal } from "@/lib/grades";
+import { toShared } from "@/lib/shared";
 import { actions, newAssignment, newCategory } from "@/lib/store";
+import CollegePicker from "./CollegePicker";
 import { Card, NumInput, btnCls, inputCls, num, pct } from "./ui";
 
 export default function CourseEditor({ course, current }: { course: Course; current: Evaluation }) {
@@ -21,7 +24,7 @@ export default function CourseEditor({ course, current }: { course: Course; curr
   return (
     <div className="flex flex-col gap-4">
       <Card className="p-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_220px]">
+        <div className="grid gap-3 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-muted">Class name</span>
             <input
@@ -30,13 +33,32 @@ export default function CourseEditor({ course, current }: { course: Course; curr
               onChange={(e) => update((c) => ({ ...c, name: e.target.value }))}
             />
           </label>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-muted">College</span>
+            <CollegePicker
+              value={course.college ? { id: course.collegeId, name: course.college } : null}
+              placeholder="Search for your college (optional)"
+              onChange={(col) => {
+                update((c) => ({ ...c, college: col?.name ?? "", collegeId: col?.id }));
+                if (col) actions.setCollege(col);
+              }}
+            />
+          </div>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-muted">College (optional)</span>
+            <span className="mb-1 block text-xs font-medium text-muted">Instructor (optional)</span>
             <input
               className={inputCls}
-              value={course.college}
-              placeholder="e.g. UC Davis"
-              onChange={(e) => update((c) => ({ ...c, college: e.target.value }))}
+              value={course.instructor ?? ""}
+              onChange={(e) => update((c) => ({ ...c, instructor: e.target.value }))}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-muted">Term (optional)</span>
+            <input
+              className={inputCls}
+              value={course.term ?? ""}
+              placeholder="e.g. Fall 2026"
+              onChange={(e) => update((c) => ({ ...c, term: e.target.value }))}
             />
           </label>
         </div>
@@ -216,6 +238,18 @@ export default function CourseEditor({ course, current }: { course: Course; curr
             >
               + Add assignment
             </button>
+            <AddSeveral
+              onAdd={(count, possible) =>
+                updateCat(cat.id, (k) => {
+                  const added: Assignment[] = [];
+                  for (let i = 0; i < count; i++) {
+                    added.push(newAssignment(nextName({ ...k, assignments: [...k.assignments, ...added] }), { possible }));
+                  }
+                  return { ...k, assignments: [...k.assignments, ...added] };
+                })
+              }
+              defaultPossible={cat.assignments[cat.assignments.length - 1]?.possible ?? 100}
+            />
           </div>
         </Card>
       ))}
@@ -275,6 +309,8 @@ export default function CourseEditor({ course, current }: { course: Course; curr
         </details>
       </Card>
 
+      <ShareCard course={course} />
+
       <div>
         <button
           className="text-sm text-bad hover:underline"
@@ -295,4 +331,103 @@ function nextName(cat: Category): string {
   const m = last?.name.match(/^(.*?)(\d+)\s*$/);
   if (m) return `${m[1]}${Number(m[2]) + 1}`;
   return `Assignment ${cat.assignments.length + 1}`;
+}
+
+/** Adds a run of numbered assignments at once, e.g. 10 quizzes out of 10. */
+function AddSeveral({
+  onAdd,
+  defaultPossible,
+}: {
+  onAdd: (count: number, possible: number) => void;
+  defaultPossible: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const [count, setCount] = useState<number | null>(5);
+  const [possible, setPossible] = useState<number | null>(defaultPossible);
+  if (!open) {
+    return (
+      <button
+        className={`${btnCls} mt-3 ml-2`}
+        onClick={() => {
+          setPossible(defaultPossible);
+          setOpen(true);
+        }}
+      >
+        + Add several
+      </button>
+    );
+  }
+  const n = Math.min(50, Math.floor(count ?? 0));
+  return (
+    <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-soft px-3 py-2 text-sm">
+      <span>Add</span>
+      <NumInput value={count} onChange={setCount} className="!w-16" aria-label="How many assignments" />
+      <span>assignments, each out of</span>
+      <NumInput value={possible} onChange={setPossible} className="!w-20" aria-label="Points each" />
+      <button
+        className={btnCls}
+        disabled={n < 1}
+        onClick={() => {
+          onAdd(n, possible ?? 100);
+          setOpen(false);
+        }}
+      >
+        Add
+      </button>
+      <button className="px-1 text-muted hover:text-ink" onClick={() => setOpen(false)}>
+        Cancel
+      </button>
+    </div>
+  );
+}
+
+/** Shares the class's grading setup (never scores) so classmates can find it in search. */
+function ShareCard({ course }: { course: Course }) {
+  const [state, setState] = useState<{ status: "idle" | "sending" | "done" | "error"; sent?: string }>({
+    status: "idle",
+  });
+  const shared = toShared(course);
+  const body = shared ? JSON.stringify(shared) : null;
+  // Once the setup changes, it can be shared again.
+  const status = state.status === "done" && state.sent !== body ? "idle" : state.status;
+
+  async function share() {
+    if (!body) return;
+    setState({ status: "sending" });
+    try {
+      const res = await fetch("/api/classes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      setState(res.ok ? { status: "done", sent: body } : { status: "error" });
+    } catch {
+      setState({ status: "error" });
+    }
+  }
+
+  return (
+    <Card className="p-4">
+      <h2 className="text-sm font-semibold">Share this setup with classmates</h2>
+      <p className="mt-1 text-sm text-muted">
+        Adds the categories, weights, drop rules and assignment names to the class search for{" "}
+        {course.college.trim() || "your college"}, so other students in this class do not have to type them in.
+        Your scores are never shared.
+      </p>
+      {!shared ? (
+        <p className="mt-2 text-sm text-warn">Add a class name and a college above to share.</p>
+      ) : status === "done" ? (
+        <p className="mt-2 text-sm text-good">Shared. Classmates can now find it under “Find your class”.</p>
+      ) : (
+        <>
+          <button className={`${btnCls} mt-3`} disabled={status === "sending"} onClick={share}>
+            {status === "sending" ? "Sharing…" : "Share setup"}
+          </button>
+          {status === "error" && (
+            <p className="mt-2 text-sm text-bad">Could not share right now. Try again in a moment.</p>
+          )}
+        </>
+      )}
+    </Card>
+  );
 }

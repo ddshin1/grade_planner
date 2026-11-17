@@ -12,8 +12,6 @@ import {
   requiredScore,
   skipPlan,
 } from "@/lib/grades";
-import { findCourse } from "@/lib/catalog";
-import ClassStats, { useCatalog } from "./ClassStats";
 import { Card, NumInput, inputCls, num, pct } from "./ui";
 
 export default function Results({ course, current }: { course: Course; current: Evaluation }) {
@@ -229,23 +227,7 @@ export default function Results({ course, current }: { course: Course; current: 
         </Card>
       )}
 
-      {course.catalog && <PastGrades catalogRef={course.catalog} />}
     </div>
-  );
-}
-
-function PastGrades({ catalogRef }: { catalogRef: NonNullable<Course["catalog"]> }) {
-  const loaded = useCatalog(catalogRef.school);
-  if (loaded.status !== "ready") return null;
-  const found = findCourse(loaded.catalog, catalogRef);
-  if (!found) return null;
-  return (
-    <Card className="p-4">
-      <h2 className="mb-3 text-sm font-semibold">
-        How past students did in {found.s} {found.n}
-      </h2>
-      <ClassStats catalog={loaded.catalog} course={found} />
-    </Card>
   );
 }
 

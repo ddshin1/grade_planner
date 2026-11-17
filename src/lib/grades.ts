@@ -38,8 +38,10 @@ export type Course = {
   categories: Category[];
   /** Letter cutoffs, e.g. { letter: "A", min: 93 }. */
   scale: GradeCutoff[];
-  /** Set when the class was added from a school's course catalog. */
-  catalog?: { school: string; subject: string; number: string };
+  /** Id of the college in the colleges list, when it was picked from the list. */
+  collegeId?: string;
+  instructor?: string;
+  term?: string;
 };
 
 export const DEFAULT_SCALE: GradeCutoff[] = [

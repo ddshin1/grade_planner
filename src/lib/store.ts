@@ -1,39 +1,21 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { type Assignment, type Category, type Course, DEFAULT_SCALE } from "./grades";
+import { type Course, DEFAULT_SCALE } from "./grades";
+import { newAssignment, newCategory, uid } from "./ids";
+
+export { newAssignment, newCategory, uid };
 
 /** Courses are kept in the browser's localStorage. No account or server needed. */
 const KEY = "grade-planner:v1";
 
-export type State = { courses: Course[]; selectedId: string | null };
+/** The college the student last picked, so they only choose it once. */
+export type ChosenCollege = { id?: string; name: string };
+
+export type State = { courses: Course[]; selectedId: string | null; college?: ChosenCollege | null };
 
 let state: State | null = null;
 const listeners = new Set<() => void>();
-
-export const uid = () =>
-  typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID()
-    : Math.random().toString(36).slice(2) + Date.now().toString(36);
-
-export const newAssignment = (name: string, over: Partial<Assignment> = {}): Assignment => ({
-  id: uid(),
-  name,
-  possible: 100,
-  earned: null,
-  whatIf: null,
-  extraCredit: false,
-  ...over,
-});
-
-export const newCategory = (name: string, weight: number, over: Partial<Category> = {}): Category => ({
-  id: uid(),
-  name,
-  weight,
-  drops: 0,
-  assignments: [],
-  ...over,
-});
 
 export const newCourse = (name = "New class"): Course => ({
   id: uid(),
@@ -118,7 +100,10 @@ export function useStore(): State | null {
 
 export const actions = {
   addCourse(course: Course) {
-    setState((s) => ({ courses: [...s.courses, course], selectedId: course.id }));
+    setState((s) => ({ ...s, courses: [...s.courses, course], selectedId: course.id }));
+  },
+  setCollege(college: ChosenCollege | null) {
+    setState((s) => ({ ...s, college }));
   },
   select(id: string) {
     setState((s) => ({ ...s, selectedId: id }));
@@ -126,7 +111,7 @@ export const actions = {
   removeCourse(id: string) {
     setState((s) => {
       const courses = s.courses.filter((c) => c.id !== id);
-      return { courses, selectedId: s.selectedId === id ? (courses[0]?.id ?? null) : s.selectedId };
+      return { ...s, courses, selectedId: s.selectedId === id ? (courses[0]?.id ?? null) : s.selectedId };
     });
   },
   updateCourse(id: string, fn: (c: Course) => Course) {
