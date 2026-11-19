@@ -52,10 +52,13 @@ The grade math lives in `src/lib/grades.ts` and is covered by `src/lib/grades.te
   (course codes and titles only). Rebuild with `node scripts/build-uiuc.mjs`. To add a college's
   course list, write a similar script and add the college id to `CATALOG_COLLEGES` in
   `src/lib/catalog.ts`.
-- **Shared class setups**: saved by the server in `.data/shared-classes.json`. This works on your
-  own computer or a server with a disk. Hosts like Vercel have no permanent disk, so before
-  deploying there, swap the two functions at the top of `src/lib/server/class-store.ts` for a hosted
-  database. Sharing is open to anyone (no accounts, no moderation, no rate limit yet).
+- **Shared class setups**: in a Supabase table when `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are
+  set (schema in `supabase/schema.sql`), otherwise in `.data/shared-classes.json` on the computer
+  running the site. Setups reported by three visitors are hidden; one visitor can share 20 an hour.
+
+## Putting it online
+
+See [DEPLOY.md](DEPLOY.md): Supabase for the database, Vercel for hosting.
 
 ## Layout
 

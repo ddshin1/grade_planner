@@ -84,9 +84,10 @@ One calculation module, kept separate from the UI and fully unit tested:
 - Done but untested against the real AI: step 3 (upload endpoint and review screen). Needs an API key to try.
 - Done in a first version: step 5. Students pick any college (public list of about 10,000, or type
   their own), search its classes, and set a class up by hand when it is not found. A setup can be
-  shared so classmates find it in search. UIUC also has its official course list. Still missing: a
-  hosted database for the shared setups (they are in a file on the server for now), course lists
-  for more colleges, and a way to flag wrong shared setups.
+  shared so classmates find it in search. UIUC also has its official course list. Shared setups
+  use Supabase when configured, can be reported (three reports hide one), and are rate limited.
+  Still missing: course lists for more colleges.
+- Ready to deploy: see DEPLOY.md. Needs a Supabase and a Vercel account.
 - Not started: step 4 (accounts) and the multi-class dashboard in step 6.
 
 ## Build order

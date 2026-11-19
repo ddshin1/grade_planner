@@ -12,7 +12,8 @@ import { ImportedCourseSchema } from "@/lib/import-schema";
 
 export const maxDuration = 120;
 
-const MAX_BYTES = 10 * 1024 * 1024;
+// Vercel rejects request bodies over 4.5 MB, so stay under that.
+const MAX_BYTES = 4 * 1024 * 1024;
 const IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"] as const;
 type ImageType = (typeof IMAGE_TYPES)[number];
 
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
     return error("Send the file as form data.", 400);
   }
   if (!file) return error("No file was uploaded.", 400);
-  if (file.size > MAX_BYTES) return error("That file is over 10 MB. Try a smaller file or a screenshot.", 413);
+  if (file.size > MAX_BYTES) return error("That file is over 4 MB. Try a smaller file or a screenshot.", 413);
 
   const isPdf = file.type === "application/pdf";
   const isImage = (IMAGE_TYPES as readonly string[]).includes(file.type);

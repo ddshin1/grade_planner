@@ -102,9 +102,12 @@ function ClassSearch({ college, onClose }: { college: ChosenCollege; onClose: ()
                       {describeShared(c)}
                     </div>
                   </div>
-                  <button className={`${primaryBtnCls} h-8 shrink-0 px-2.5`} onClick={() => add(fromShared(c))}>
-                    Use this
-                  </button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <button className={`${primaryBtnCls} h-8 px-2.5`} onClick={() => add(fromShared(c))}>
+                      Use this
+                    </button>
+                    <ReportButton id={c.id} />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -163,5 +166,23 @@ function ClassSearch({ college, onClose }: { college: ChosenCollege; onClose: ()
         )}
       </div>
     </>
+  );
+}
+
+/** Flags a shared setup as wrong. Setups with several reports stop appearing in search. */
+function ReportButton({ id }: { id: string }) {
+  const [sent, setSent] = useState(false);
+  if (sent) return <span className="text-xs text-muted">Reported, thanks</span>;
+  return (
+    <button
+      className="text-xs text-muted underline-offset-2 hover:text-ink hover:underline"
+      onClick={() => {
+        if (!confirm("Report this setup as wrong or spam?")) return;
+        setSent(true);
+        fetch(`/api/classes/${encodeURIComponent(id)}/report`, { method: "POST" }).catch(() => undefined);
+      }}
+    >
+      Report wrong
+    </button>
   );
 }

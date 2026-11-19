@@ -63,7 +63,7 @@ export default function ImportDialog({ onClose }: { onClose: () => void }) {
             )}
             <label className="mt-4 flex cursor-pointer flex-col items-center gap-1 rounded-lg border-2 border-dashed border-line px-4 py-8 text-center hover:border-accent">
               <span className="font-medium">Choose a file</span>
-              <span className="text-sm text-muted">PDF, PNG or JPEG, up to 10 MB</span>
+              <span className="text-sm text-muted">PDF, PNG or JPEG, up to 4 MB</span>
               <input
                 type="file"
                 className="sr-only"
